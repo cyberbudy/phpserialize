@@ -499,7 +499,7 @@ def load(fp, charset='utf-8', errors=default_errors, decode_strings=False,
         if type_ == b'a':
             _expect(b':')
             return array_hook(_load_array())
-        if type_ == b'oc':
+        if type_ in b'oc':
             if object_hook is None:
                 raise ValueError('object in serialization dump but '
                                  'object_hook not given.')
