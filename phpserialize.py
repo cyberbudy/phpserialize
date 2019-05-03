@@ -460,7 +460,11 @@ def load(fp, charset='utf-8', errors=default_errors, decode_strings=False,
         result = []
         last_item = Ellipsis
         for idx in xrange(items):
-            item = _unserialize()
+            try:
+                item = _unserialize()
+            # Objects don't fit this implementation, so just pretend thats ok
+            except ValueError:
+                return result
             if last_item is Ellipsis:
                 last_item = item
             else:
@@ -495,7 +499,7 @@ def load(fp, charset='utf-8', errors=default_errors, decode_strings=False,
         if type_ == b'a':
             _expect(b':')
             return array_hook(_load_array())
-        if type_ == b'o':
+        if type_ == b'oc':
             if object_hook is None:
                 raise ValueError('object in serialization dump but '
                                  'object_hook not given.')
