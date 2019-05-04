@@ -454,17 +454,32 @@ def load(fp, charset='utf-8', errors=default_errors, decode_strings=False,
             buf.append(char)
         return b''.join(buf)
 
+    def _find_keys_num(number, to_find):
+        count = 0
+        elements = []
+
+        for i in range(number):
+            char = fp.read(1)
+
+            if char == to_find:
+                count += 1
+            elif not char:
+                raise ValueError('unexpected end of stream')
+            elements.append(char)
+
+        fp.seek(-number, 1)
+
+        return count
+
     def _load_array():
         items = int(_read_until(b':')) * 2
+
         _expect(b'{')
         result = []
         last_item = Ellipsis
         for idx in xrange(items):
-            try:
-                item = _unserialize()
-            # Objects don't fit this implementation, so just pretend thats ok
-            except ValueError:
-                return result
+            item = _unserialize()
+
             if last_item is Ellipsis:
                 last_item = item
             else:
@@ -499,7 +514,26 @@ def load(fp, charset='utf-8', errors=default_errors, decode_strings=False,
         if type_ == b'a':
             _expect(b':')
             return array_hook(_load_array())
-        if type_ in b'oc':
+        if type_ == b'c':
+            if object_hook is None:
+                raise ValueError('object in serialization dump but '
+                                 'object_hook not given.')
+            _expect(b':')
+            name_length = int(_read_until(b':'))
+            _expect(b'"')
+            name = fp.read(name_length)
+            _expect(b'":')
+
+            if decode_strings:
+                name = name.decode(charset, errors)
+
+            object_length = int(_read_until(b':'))
+
+            _expect(b'{')
+            obj = object_hook(name, dict(_unserialize()))
+            _expect(b'}')
+            return obj
+        if type_ in b'o':
             if object_hook is None:
                 raise ValueError('object in serialization dump but '
                                  'object_hook not given.')
@@ -511,6 +545,7 @@ def load(fp, charset='utf-8', errors=default_errors, decode_strings=False,
             if decode_strings:
                 name = name.decode(charset, errors)
             return object_hook(name, dict(_load_array()))
+
         raise ValueError('unexpected opcode')
 
     return _unserialize()
